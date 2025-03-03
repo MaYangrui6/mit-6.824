@@ -75,23 +75,23 @@ func (m *Coordinator) HandleTimeout(taskName string) {
 // 当一个 Worker 完成任务（Map 或 Reduce）时，它会调用 Report 方法，报告任务完成状态。
 // Report 方法会根据任务名称和任务类型更新 Coordinator 上的任务状态。如果是 Map 任务，会更新 Map 任务的文件记录，并且将文件分配到相应的 Reduce 分区。如果是 Reduce 任务，则更新 Reduce 任务状态。
 // Coordinator 会根据任务完成的状态和文件，逐步推动任务的执行流程。
-func (m *Coordinator) Report(args *ReportStatusRequest, reply *ReportStatusResponse) error {
+func (c *Coordinator) Report(args *ReportStatusRequest, reply *ReportStatusResponse) error {
 	reply.X = 1
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	if t, ok := m.taskmap[args.TaskName]; ok { //如果还在任务池中
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if t, ok := c.taskmap[args.TaskName]; ok { //如果还在任务池中
 		flag := t.Status
 		if flag == Timeout { //如果任务已经超时了，忽略
-			delete(m.taskmap, args.TaskName)
+			delete(c.taskmap, args.TaskName)
 			return nil
 		}
 		ttype := t.Type
 		if ttype == Map {
 			f := t.mFileName
-			m.mrecord[f] = Finished
-			m.mcount += 1
-			if m.mcount == len(m.mrecord) {
-				m.mapFinished = true
+			c.mrecord[f] = Finished
+			c.mcount += 1
+			if c.mcount == len(c.mrecord) {
+				c.mapFinished = true
 			}
 			for _, v := range args.FilesName {
 				index := strings.LastIndex(v, "_")
@@ -99,15 +99,15 @@ func (m *Coordinator) Report(args *ReportStatusRequest, reply *ReportStatusRespo
 				if err != nil {
 					log.Fatal(err)
 				}
-				m.reducefile[num] = append(m.reducefile[num], v)
+				c.reducefile[num] = append(c.reducefile[num], v)
 			}
-			delete(m.taskmap, t.Name)
+			delete(c.taskmap, t.Name)
 			return nil
 		} else if ttype == Reduce {
 			rf := t.rFileName
-			m.rrecord[rf] = Finished
-			m.rcount += 1
-			delete(m.taskmap, t.Name)
+			c.rrecord[rf] = Finished
+			c.rcount += 1
+			delete(c.taskmap, t.Name)
 			return nil
 		} else {
 			log.Fatal("task type is not map and reduce")
