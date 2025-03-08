@@ -120,28 +120,29 @@ func (c *Coordinator) Report(args *ReportStatusRequest, reply *ReportStatusRespo
 // Coordinator 负责任务分配，确保 Map 任务全部完成后才开始 Reduce 任务。
 // Worker 通过 GetTask 申请任务，Coordinator 分配任务并跟踪状态，确保任务完成。
 // 超时处理 避免 Worker 崩溃导致任务丢失。
-func (m *Coordinator) GetTask(args *GetTaskRequest, reply *GetTaskResponse) error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+func (c *Coordinator) GetTask(args *GetTaskRequest, reply *GetTaskResponse) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	reply.RFileName = make([]string, 0)
-	reply.ReduceNumber = m.reduceNumber
+	reply.ReduceNumber = c.reduceNumber
 	reply.MFileName = ""
+	//将 taskNumber（一个整数）转换为字符串
 	reply.TaskName = strconv.Itoa(taskNumber)
 	taskNumber += 1
-	if m.mapFinished {
-		for v := range m.rrecord {
-			flag := m.rrecord[v]
+	if c.mapFinished {
+		for v := range c.rrecord {
+			flag := c.rrecord[v]
 			if flag == Processing || flag == Finished { //如果这个任务正在执行或者已经结束，找下一个任务
 				continue
 			} else {
-				m.rrecord[v] = Processing
-				for _, filename := range m.reducefile[v] {
+				c.rrecord[v] = Processing
+				for _, filename := range c.reducefile[v] {
 					reply.RFileName = append(reply.RFileName, filename)
 				}
 				reply.TaskType = Reduce
 				t := &Task{reply.TaskName, reply.TaskType, Working, "", v}
-				m.taskmap[reply.TaskName] = t
-				go m.HandleTimeout(reply.TaskName)
+				c.taskmap[reply.TaskName] = t
+				go c.HandleTimeout(reply.TaskName)
 				return nil
 			}
 		}
@@ -149,18 +150,18 @@ func (m *Coordinator) GetTask(args *GetTaskRequest, reply *GetTaskResponse) erro
 		return nil
 	} else {
 		//分配map任务
-		for v, _ := range m.mrecord {
-			flag := m.mrecord[v]
+		for v, _ := range c.mrecord {
+			flag := c.mrecord[v]
 			if flag == Processing || flag == Finished { //如果这个任务正在执行或者已经结束，找下一个任务
 				continue
 			} else {
-				m.mrecord[v] = Processing //修改文件状态
+				c.mrecord[v] = Processing //修改文件状态
 				reply.MFileName = v
 				reply.TaskType = Map
 				t := &Task{reply.TaskName, reply.TaskType, Working, reply.MFileName, -1}
-				m.taskmap[reply.TaskName] = t
+				c.taskmap[reply.TaskName] = t
 
-				go m.HandleTimeout(reply.TaskName)
+				go c.HandleTimeout(reply.TaskName)
 				return nil
 			}
 		}
