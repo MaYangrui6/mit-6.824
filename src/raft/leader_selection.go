@@ -27,7 +27,8 @@ func (rf *Raft) StartElection() {
 	args.LastLogIndex = rf.log.LastLogIndex
 	args.LastLogTerm = rf.getLastEntryTerm()
 	DPrintf("[%d] attempting an election at term %d with my LastLogIndex %d and LastLogTerm %d", rf.me, rf.currentTerm, rf.log.LastLogIndex, args.LastLogTerm)
-
+	//在 StartElection 方法返回之前，rf.persist() 方法会被调用
+	defer rf.persist()
 	for i, _ := range rf.peers {
 		if rf.me == i {
 			continue
@@ -89,7 +90,6 @@ func (rf *Raft) resetElectionTimer() {
 }
 
 func (rf *Raft) becomeCandidate() {
-	//defer rf.persist()
 	rf.state = Candidate
 	rf.currentTerm++
 	//rf.votedMe = make([]bool, len(rf.peers))
@@ -144,6 +144,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	if args.Term < rf.currentTerm {
 		DPrintf("%v: 投出反对票给节点%d, 原因：任期", rf.SayMeL(), args.CandidateId)
 		reply.VoteGranted = false
+		rf.persist()
 		return
 	}
 	if args.Term > rf.currentTerm {
@@ -161,13 +162,13 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	update = update || args.LastLogTerm == rf.getLastEntryTerm() && args.LastLogIndex >= rf.log.LastLogIndex
 
 	if (rf.votedFor == -1 || rf.votedFor == args.CandidateId) && update {
-		//if rf.votedFor == -1 {
+		//if rf.votedFor == -1
 		//竞选任期大于自身任期，则更新自身任期，并转为follower
 		rf.votedFor = args.CandidateId
 		rf.state = Follower
 		rf.resetElectionTimer() //自己的票已经投出时就转为follower状态
 		DPrintf("%v: 投出同意票给节点%d", rf.SayMeL(), args.CandidateId)
-
+		rf.persist()
 	} else {
 		reply.VoteGranted = false
 		DPrintf("%v: 投出反对票给节点%d， 原因：我已经投票给%d", rf.SayMeL(), args.CandidateId, rf.votedFor)

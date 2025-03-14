@@ -8,7 +8,9 @@ import (
 const activeWindowWidth = 2 * baseElectionTimeout * time.Millisecond
 
 type PeerTracker struct {
-	nextIndex  int
+	//nextIndex 主要用于日志同步和避免不必要的日志传输
+	nextIndex int
+	//matchIndex 主要用于确定提交索引和检测日志复制进度
 	matchIndex int
 
 	lastAck time.Time

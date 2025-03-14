@@ -38,7 +38,8 @@ func ifCond(cond bool, a, b interface{}) interface{} {
 	}
 }
 
-// ApplyHelper 结构体的作用是保证 ApplyMsg 按照顺序被提交到 applyCh 进行状态机应用，主要用于 Raft 服务器的日志提交过程。它管理 applyCh 的消息队列 q，确保日志按顺序提交，同时处理快照提交。
+// ApplyHelper 结构体的作用是保证 ApplyMsg 按照顺序被提交到 applyCh 进行状态机应用，主要用于 Raft 服务器的日志提交过程。
+// 它管理 applyCh 的消息队列 q，确保日志按顺序提交，同时处理快照提交。
 type ApplyHelper struct {
 	applyCh       chan ApplyMsg // 负责向上层传递应用日志的通道
 	lastItemIndex int           // 记录已经提交的最新日志索引
